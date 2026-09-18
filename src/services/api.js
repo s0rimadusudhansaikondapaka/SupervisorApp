@@ -1,32 +1,36 @@
-// Dynamic base URL with environment variable fallback and runtime override support
-let currentBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+// src/services/api.js
+import axios from 'axios';
 
-export const getBaseUrl = () => currentBaseUrl;
-export const setBaseUrl = (url) => {
-  if (url) {
-    currentBaseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-  }
-};
+let BASE_URL = localStorage.getItem('supervisor_api_url') || 'https://v-pass-backend.onrender.com';
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('supervisor_token');
-  return {
+const api = axios.create({
+  baseURL: BASE_URL,
+  timeout: 15000,
+  headers: {
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
+  },
+});
+
+export const getBaseUrl = () => BASE_URL;
+
+export const setBaseUrl = (url) => {
+  BASE_URL = url.replace(/\/+$/, '');
+  localStorage.setItem('supervisor_api_url', BASE_URL);
+  api.defaults.baseURL = BASE_URL;
 };
 
-export const loginSupervisor = async (credentials) => {
-  const response = await fetch(`${getBaseUrl()}/auth/supervisor-login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(credentials)
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.message || 'Login failed');
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('supervisor_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-  return response.json();
+  return config;
+});
+
+// Authentication
+export const loginSupervisor = async (username, password) => {
+  const res = await api.post('/api/auth/supervisor/login', { username, password });
+  return res.data;
 };
 
 export const logoutSupervisor = async () => {
@@ -34,94 +38,76 @@ export const logoutSupervisor = async () => {
   localStorage.removeItem('supervisor_user');
 };
 
-// Queue & Verification APIs
+// Spot registrations queue & approvals
 export const getSpotRegistrationsQueue = async () => {
-  const res = await fetch(`${getBaseUrl()}/supervisor/spot-registrations`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error('Failed to fetch spot registrations queue');
-  return res.json();
+  const res = await api.get('/api/supervisor/spot-queue');
+  return res.data;
 };
 
-export const approveSpotRegistration = async (id, payload = {}) => {
-  const res = await fetch(`${getBaseUrl()}/supervisor/spot-registrations/${id}/approve`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) throw new Error('Failed to approve registration');
-  return res.json();
+export const processApproval = async (id, status, reason = '') => {
+  const res = await api.post(`/api/supervisor/spot-queue/${id}/action`, { status, reason });
+  return res.data;
 };
 
-export const rejectSpotRegistration = async (id, reason) => {
-  const res = await fetch(`${getBaseUrl()}/supervisor/spot-registrations/${id}/reject`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ reason })
-  });
-  if (!res.ok) throw new Error('Failed to reject registration');
-  return res.json();
+export const approveSpotPass = async (id, notes) => {
+  const res = await api.post(`/api/supervisor/spot-queue/${id}/approve`, { notes });
+  return res.data;
 };
 
+export const rejectSpotPass = async (id, reason) => {
+  const res = await api.post(`/api/supervisor/spot-queue/${id}/reject`, { reason });
+  return res.data;
+};
+
+// Overstay alerts
 export const getOverstayAlerts = async () => {
-  const res = await fetch(`${getBaseUrl()}/supervisor/overstay-alerts`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error('Failed to fetch overstay alerts');
-  return res.json();
+  const res = await api.get('/api/supervisor/overstay-alerts');
+  return res.data;
 };
 
+export const resolveAlert = async (alertId, resolutionNotes) => {
+  const res = await api.post(`/api/supervisor/overstay-alerts/${alertId}/resolve`, { resolutionNotes });
+  return res.data;
+};
+
+// Guards & Roster
 export const getGatewiseGuards = async () => {
-  const res = await fetch(`${getBaseUrl()}/supervisor/guards`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error('Failed to fetch guard roster');
-  return res.json();
+  const res = await api.get('/api/supervisor/gate-guards');
+  return res.data;
 };
 
+export const getGuards = async () => {
+  const res = await api.get('/api/supervisor/guards');
+  return res.data;
+};
+
+// Visitors
 export const getVisitorsInsideCampus = async () => {
-  const res = await fetch(`${getBaseUrl()}/supervisor/visitors-inside`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error('Failed to fetch visitors inside campus');
-  return res.json();
+  const res = await api.get('/api/supervisor/visitors-inside');
+  return res.data;
 };
 
-export const verifyPassByQr = async (passCode) => {
-  const res = await fetch(`${getBaseUrl()}/supervisor/verify-pass`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ passCode })
-  });
-  if (!res.ok) throw new Error('Failed to verify pass');
-  return res.json();
+export const getVisitorsInside = async () => {
+  const res = await api.get('/api/supervisor/visitors-inside');
+  return res.data;
 };
 
-export const getGateLogs = async (filters = {}) => {
-  const query = new URLSearchParams(filters).toString();
-  const res = await fetch(`${getBaseUrl()}/supervisor/logs?${query}`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error('Failed to fetch logs');
-  return res.json();
+// Emergency Passes
+export const createEmergencyPass = async (passData) => {
+  const res = await api.post('/api/supervisor/emergency-pass', passData);
+  return res.data;
 };
 
-export const reportIncident = async (incidentData) => {
-  const res = await fetch(`${getBaseUrl()}/supervisor/incident`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(incidentData)
-  });
-  if (!res.ok) throw new Error('Failed to report incident');
-  return res.json();
+// Incident Reports
+export const submitIncidentReport = async (reportData) => {
+  const res = await api.post('/api/supervisor/incident-report', reportData);
+  return res.data;
 };
 
-export const issueEmergencyPass = async (passData) => {
-  const res = await fetch(`${getBaseUrl()}/supervisor/emergency-pass`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(passData)
-  });
-  if (!res.ok) throw new Error('Failed to issue emergency pass');
-  return res.json();
+// Gate Logs
+export const getGateLogs = async (params) => {
+  const res = await api.get('/api/supervisor/gate-logs', { params });
+  return res.data;
 };
+
+export default api;
