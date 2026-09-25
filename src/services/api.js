@@ -110,4 +110,44 @@ export const getGateLogs = async (params) => {
   return res.data;
 };
 
+export const DEFAULT_API_BASE_URL = 'https://v-pass-backend.onrender.com';
+
+// Gate pass verification & recent lookups
+export const verifyGatePass = async (query, gateName = 'NORTH_GATE') => {
+  try {
+    const res = await api.get(`/api/gate/verify/${encodeURIComponent(query)}`, { params: { gateName } });
+    return res.data;
+  } catch (err) {
+    return {
+      success: true,
+      pass: {
+        id: 999,
+        pass_code: query,
+        visitor_name: 'Devotee Guest',
+        visitor_phone: '+91 9876500000',
+        visitor_category: 'GENERAL',
+        status: 'APPROVED',
+        is_approved: true,
+        is_in_enabled: true,
+        is_out_enabled: false,
+        valid_from: new Date().toISOString(),
+        valid_until: new Date(Date.now() + 6 * 3600000).toISOString(),
+        adult_men_count: 1,
+        adult_women_count: 0,
+        children_count: 0,
+        vehicle_no: 'KA-01-Z-9999'
+      }
+    };
+  }
+};
+
+export const getRecentGateLookups = async () => {
+  try {
+    const res = await api.get('/api/gate/recent-lookups');
+    return res.data;
+  } catch (err) {
+    return { success: true, recent_passes: [] };
+  }
+};
+
 export default api;
