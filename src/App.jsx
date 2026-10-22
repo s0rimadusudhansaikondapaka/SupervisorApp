@@ -15,6 +15,7 @@ import VisitorsInside from './pages/VisitorsInside';
 import GateLogs from './pages/GateLogs';
 import IncidentReport from './pages/IncidentReport';
 import Settings from './pages/Settings';
+import ResetPassword from './pages/ResetPassword';
 
 setupIonicReact();
 
@@ -37,6 +38,7 @@ export default function App() {
         <IonReactRouter>
           <IonRouterOutlet>
             <Route exact path="/login" component={Login} />
+            <Route exact path="/reset-password" component={ResetPassword} />
             <ProtectedRoute exact path="/home" component={SupervisorHome} />
             <ProtectedRoute exact path="/spot-approvals" component={SpotApprovals} />
             <ProtectedRoute exact path="/scan-verify" component={ScanVerify} />

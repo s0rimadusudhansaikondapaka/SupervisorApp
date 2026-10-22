@@ -172,4 +172,28 @@ export const getRecentGateLookups = async () => {
   }
 };
 
+// Password Management APIs
+export const forgotPassword = async (identifier) => {
+  const res = await api.post('/api/auth/forgot-password', {
+    identifier,
+    app_url: window.location.origin,
+  });
+  return res.data;
+};
+
+export const verifyResetToken = async (token) => {
+  const res = await api.get('/api/auth/verify-reset-token', { params: { token } });
+  return res.data;
+};
+
+export const resetPassword = async (token, newPassword) => {
+  const res = await api.post('/api/auth/reset-password', { token, newPassword });
+  return res.data;
+};
+
+export const changePassword = async (currentPassword, newPassword) => {
+  const res = await api.post('/api/auth/change-password', { currentPassword, newPassword });
+  return res.data;
+};
+
 export default api;
