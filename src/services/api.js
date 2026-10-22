@@ -37,7 +37,21 @@ api.interceptors.request.use((config) => {
 
 // Authentication
 export const loginSupervisor = async (username, password) => {
-  const res = await api.post('/api/auth/supervisor/login', { username, password });
+  const payload = { email: username, username, password };
+  let res;
+  try {
+    res = await api.post('/api/auth/login', payload);
+  } catch (err) {
+    if (err.response && err.response.status === 404) {
+      res = await api.post('/api/auth/supervisor/login', payload);
+    } else {
+      throw err;
+    }
+  }
+  if (res.data && res.data.token) {
+    localStorage.setItem('supervisor_token', res.data.token);
+    localStorage.setItem('supervisor_user', JSON.stringify(res.data.user));
+  }
   return res.data;
 };
 
