@@ -1,7 +1,15 @@
 // src/services/api.js
 import axios from 'axios';
 
-let BASE_URL = localStorage.getItem('supervisor_api_url') || 'https://v-pass-backend.onrender.com';
+const getInitialBaseUrl = () => {
+  const saved = localStorage.getItem('supervisor_api_url');
+  if (saved && !saved.includes('localhost') && !saved.includes('v-pass-backend')) {
+    return saved.replace(/\/+$/, '');
+  }
+  return import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || 'https://smsavmsserver.onrender.com';
+};
+
+let BASE_URL = getInitialBaseUrl();
 
 const api = axios.create({
   baseURL: BASE_URL,
